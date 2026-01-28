@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Endless Haxla</title>
+<style>
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: #eee;
+  text-align: center;
+}
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+}
+.box {
+  border: 1px solid #555;
+  margin: 10px auto;
+  padding: 10px;
+  width: 320px;
+}
+.rare { color: #66ccff; }
+.epic { color: #cc66ff; }
+.legend { color: #ffcc00; }
+</style>
+</head>
+<body>
+
+<h1>⚔ Endless Haxla ⚔</h1>
+
+<div class="box">
+  <p>フロア: <span id="floor">1</span></p>
+  <p>HP: <span id="hp">100</span></p>
+  <p>攻撃力: <span id="atk">10</span></p>
+</div>
+
+<div class="box">
+  <p>敵HP: <span id="enemyHp">30</span></p>
+  <button onclick="battle()">戦う！</button>
+</div>
+
+<div class="box">
+  <h3>装備</h3>
+  <p id="weapon">なし</p>
+</div>
+
+<div class="box">
+  <h3>ログ</h3>
+  <div id="log"></div>
+</div>
+
+<script>
+let player = {
+  hp: 100,
+  atk: 10,
+  weapon: null
+};
+
+let enemy = {
+  hp: 30
+};
+
+let floor = 1;
+
+function battle() {
+  enemy.hp -= player.atk;
+  log(`あなたの攻撃！ ${player.atk}ダメージ`);
+
+  if (enemy.hp <= 0) {
+    floor++;
+    document.getElementById("floor").textContent = floor;
+    dropItem();
+    enemy.hp = 20 + floor * 5;
+    log("敵を倒した！");
+  } else {
+    player.hp -= 5 + Math.floor(floor / 2);
+    log("敵の反撃！");
+  }
+
+  update();
+}
+
+function dropItem() {
+  let roll = Math.random();
+  let item = null;
+
+  if (roll > 0.95) {
+    item = { name: "伝説の剣", atk: 50, rare: "legend" };
+  } else if (roll > 0.85) {
+    item = { name: "英雄の剣", atk: 25, rare: "epic" };
+  } else if (roll > 0.6) {
+    item = { name: "鋼の剣", atk: 10, rare: "rare" };
+  }
+
+  if (item) {
+    equip(item);
+    log(`ドロップ！ <span class="${item.rare}">${item.name}</span>`);
+  }
+}
+
+function equip(item) {
+  player.weapon = item;
+  player.atk = 10 + item.atk;
+  document.getElementById("weapon").innerHTML =
+    `<span class="${item.rare}">${item.name}</span> (+${item.atk})`;
+}
+
+function update() {
+  document.getElementById("hp").textContent = player.hp;
+  document.getElementById("atk").textContent = player.atk;
+  document.getElementById("enemyHp").textContent = enemy.hp;
+
+  if (player.hp <= 0) {
+    alert("ゲームオーバー！");
+    location.reload();
+  }
+}
+
+function log(text) {
+  let div = document.getElementById("log");
+  div.innerHTML = text + "<br>" + div.innerHTML;
+}
+</script>
+
+</body>
+</html>
