@@ -14,16 +14,13 @@ body{margin:0;background:#000;color:#fff;font-family:-apple-system}
 .screen{display:none}
 .screen.active{display:block}
 
-.dungeon{height:220px;background:#111;
+.dungeon{height:200px;background:#111;
 display:flex;flex-direction:column;align-items:center;justify-content:center}
-.enemy-img{width:72px;height:72px;border-radius:50%}
 .party{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px}
 .chara{background:#0e2a42;padding:6px;font-size:10px;text-align:center}
-.hp{height:6px;background:#333;border-radius:3px}
+.hp{height:6px;background:#333;border-radius:3px;margin-top:2px}
 .hp span{display:block;height:100%;background:#4f9}
-.log{height:80px;overflow:auto;font-size:10px;background:#020e18;padding:4px}
-.panel{padding:6px}
-button{margin:2px}
+.log{height:90px;overflow:auto;font-size:10px;background:#020e18;padding:4px}
 </style>
 </head>
 
@@ -35,31 +32,23 @@ button{margin:2px}
 <button onclick="show('base')">拠点</button>
 </div>
 
-<!-- ダンジョン -->
 <div id="dungeon" class="screen active">
 <div class="dungeon">
 <div id="enemyName"></div>
 <div id="enemyHp"></div>
 </div>
-<div class="party" id="battleParty"></div>
+<div class="party" id="party"></div>
 <div class="log" id="log"></div>
 </div>
 
-<!-- 拠点 -->
 <div id="base" class="screen">
-<div class="panel">
-<h4>前衛</h4>
-<div id="front"></div>
-<h4>控え</h4>
-<div id="back"></div>
-</div>
+<p>拠点（後で拡張）</p>
 </div>
 
 </div>
 
 <script>
 /* ===== 共通 ===== */
-function num(v,d=0){return Number.isFinite(v)?v:d}
 function log(t){
 const l=document.getElementById("log");
 l.innerHTML+=t+"<br>";
@@ -67,36 +56,31 @@ l.scrollTop=l.scrollHeight;
 }
 
 /* ===== キャラ定義 ===== */
-const CHARACTERS=[
+const BASE_CHARS=[
 {
 name:"クローディア",
 lv:1,exp:0,
-base:{hp:80,atk:12,def:6,tech:8},
-growth:{hp:1.1,atk:1.3,def:1.0,tech:1.2},
-equip:{weapon:null,armor:null,acc:null}
+maxHp:80,hp:80,
+atk:12,def:6,tech:8
 },
 {
 name:"アヤメ",
 lv:1,exp:0,
-base:{hp:65,atk:14,def:4,tech:12},
-growth:{hp:1.0,atk:1.2,def:0.9,tech:1.4},
-equip:{weapon:null,armor:null,acc:null}
+maxHp:65,hp:65,
+atk:14,def:4,tech:12
 },
 {
 name:"ベアトリクス",
 lv:1,exp:0,
-base:{hp:90,atk:9,def:8,tech:6},
-growth:{hp:1.2,atk:1.0,def:1.3,tech:0.9},
-equip:{weapon:null,armor:null,acc:null}
+maxHp:90,hp:90,
+atk:9,def:8,tech:6
 }
 ];
 
 /* ===== 状態 ===== */
-let state=JSON.parse(localStorage.getItem("save"))||{
-front:[0,1,2],
-back:[],
-chars:JSON.parse(JSON.stringify(CHARACTERS)),
-enemy:null
+let state=JSON.parse(localStorage.getItem("save")) || {
+party: JSON.parse(JSON.stringify(BASE_CHARS)),
+enemy: null
 };
 
 /* ===== 敵 ===== */
@@ -115,63 +99,49 @@ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
 document.getElementById(id).classList.add("active");
 }
 
-function calcStat(c){
-return {
-hp: Math.floor(c.base.hp + c.lv*10),
-atk: Math.floor(c.base.atk * c.growth.atk),
-def: Math.floor(c.base.def * c.growth.def),
-tech: Math.floor(c.base.tech * c.growth.tech)
-};
-}
-
 /* ===== 描画 ===== */
 function render(){
-if(!state.enemy)state.enemy=createEnemy();
-
-document.getElementById("enemyName").textContent=state.enemy.name;
+const e=state.enemy;
+document.getElementById("enemyName").textContent=e.name;
 document.getElementById("enemyHp").textContent=
-`HP ${state.enemy.hp}/${state.enemy.maxHp}`;
+`HP ${e.hp}/${e.maxHp}`;
 
-const bp=document.getElementById("battleParty");
-bp.innerHTML="";
-state.front.forEach(i=>{
-const c=state.chars[i];
-const st=calcStat(c);
-bp.innerHTML+=`
+const p=document.getElementById("party");
+p.innerHTML="";
+state.party.forEach(c=>{
+const rate=Math.max(0,Math.min(100,Math.floor(c.hp/c.maxHp*100)));
+p.innerHTML+=`
 <div class="chara">
 ${c.name} Lv${c.lv}
-<div class="hp"><span style="width:${st.hp?100:0}%"></span></div>
-ATK ${st.atk} DEF ${st.def} TEC ${st.tech}
+<div class="hp"><span style="width:${rate}%"></span></div>
+ATK ${c.atk} DEF ${c.def} TEC ${c.tech}
 </div>`;
 });
 
-save();
-}
-
-function save(){
 localStorage.setItem("save",JSON.stringify(state));
 }
 
 /* ===== 戦闘 ===== */
 function tick(){
-let totalDmg=0;
-state.front.forEach(i=>{
-const c=state.chars[i];
-const st=calcStat(c);
-let dmg=st.atk;
-const crit=Math.random()<st.tech/100;
-if(crit){dmg*=2}
-totalDmg+=dmg;
-log(`${c.name}の攻撃 → ${dmg}${crit?" (CRIT)":""}`);
+let total=0;
+state.party.forEach(c=>{
+let dmg=c.atk;
+const crit=Math.random()<c.tech/100;
+if(crit)dmg*=2;
+total+=dmg;
+log(`${c.name} → ${dmg}ダメージ${crit?" (CRIT)":""}`);
 });
-state.enemy.hp-=totalDmg;
+state.enemy.hp-=total;
+
 if(state.enemy.hp<=0){
-log("敵を撃破！");
+log("敵撃破！");
 state.enemy=createEnemy();
 }
 render();
 }
 
+/* ===== 初期化 ===== */
+state.enemy=createEnemy();
 render();
 setInterval(tick,1500);
 </script>
