@@ -9,186 +9,143 @@
 body{margin:0;background:#000;color:#fff;font-family:-apple-system}
 #game{max-width:420px;margin:auto}
 .top{display:flex;align-items:center;padding:6px;background:#0b2a44}
-.circle{width:64px;height:64px;border-radius:50%;background:linear-gradient(#1e4f7a,#0b2a44);
-display:flex;align-items:center;justify-content:center;font-size:12px}
-.bar{flex:1;height:30px;margin:0 6px;background:#143b63;border-radius:4px}
+.circle{width:64px;height:64px;border-radius:50%;background:#123}
 .menu{display:flex;background:#061a2a}
 .menu button{flex:1;border:none;background:#061a2a;color:#9cf;padding:8px}
 .menu button.active{background:#0e2a42}
 .screen{display:none}
 .screen.active{display:block}
-.dungeon{height:240px;background:radial-gradient(#222,#000);
+.dungeon{height:220px;background:radial-gradient(#222,#000);
 display:flex;flex-direction:column;align-items:center;justify-content:center}
-.enemy{margin:6px;font-size:14px}
-.enemy-img{width:64px;height:64px;border-radius:50%;margin-bottom:4px}
-.party{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px;background:#061a2a}
+.enemy-img{width:72px;height:72px;border-radius:50%;
+animation:spawn .3s ease}
+.enemy-img.hit{animation:hit .15s}
+.enemy-img.dead{animation:dead .4s forwards}
+@keyframes spawn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes hit{0%{transform:translateX(-4px)}50%{transform:translateX(4px)}}
+@keyframes dead{to{transform:scale(0);opacity:0}}
+.party{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px}
 .chara{background:#0e2a42;padding:4px;font-size:9px;text-align:center}
-.face{width:36px;height:36px;border-radius:50%;background:linear-gradient(#666,#222);margin:auto}
-.hp-bar{height:6px;background:#333;border-radius:3px;overflow:hidden}
-.hp-bar span{display:block;height:100%;background:linear-gradient(#4eff9a,#1fae63)}
-.panel{padding:10px;text-align:center}
-.panel button{margin:4px;padding:8px;border:none;background:#0e2a42;color:#fff}
-.stat{font-size:12px;margin:2px}
+.hp{height:6px;background:#333;border-radius:3px}
+.hp span{display:block;height:100%;background:#4f9}
+.log{height:60px;overflow:auto;font-size:10px;background:#020e18;padding:4px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);
+display:none;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.box{background:#123;padding:12px;width:80%}
 </style>
 </head>
 
 <body>
 <div id="game">
-
-<div class="top">
-  <div class="circle">
-    <div>
-      <div id="floor">1F</div>
-      <div id="dist">0m</div>
-    </div>
-  </div>
-  <div class="bar"></div>
-</div>
+<div class="top"><div id="info"></div></div>
 
 <div class="menu">
-  <button id="btn-dungeon" class="active" onclick="show('dungeon')">ダンジョン</button>
-  <button id="btn-town" onclick="show('town')">拠点</button>
-  <button id="btn-status" onclick="show('status')">ステータス</button>
+<button class="active" onclick="show('dungeon')">ダンジョン</button>
+<button onclick="show('town')">拠点</button>
 </div>
 
 <div id="dungeon" class="screen active">
-  <div class="dungeon">
-    <div id="enemyImg" class="enemy-img"></div>
-    <div class="enemy" id="enemyName"></div>
-    <div class="enemy" id="enemyHp"></div>
-  </div>
-  <div class="party" id="party"></div>
+<div class="dungeon">
+<div id="enemyImg" class="enemy-img"></div>
+<div id="enemyName"></div>
+<div id="enemyHp"></div>
+</div>
+<div class="party" id="party"></div>
+<div class="log" id="log"></div>
 </div>
 
 <div id="town" class="screen">
-  <div class="panel">
-    <button onclick="heal()">全回復</button><br>
-    <button onclick="moveFloor(1)">次の階層</button>
-    <button onclick="moveFloor(-1)">前の階層</button>
-  </div>
+<button onclick="heal()">全回復</button>
+<button onclick="nextFloor()">次の階層</button>
+</div>
 </div>
 
-<div id="status" class="screen">
-  <div id="statusList"></div>
-</div>
-
+<div class="modal" id="modal" onclick="closeModal()">
+<div class="box" id="modalBox"></div>
 </div>
 
 <script>
-const ENEMIES=[
-{name:"スライム",hp:120,atk:5,color:"#3af"},
-{name:"ゴブリン",hp:180,atk:8,color:"#6f6"},
-{name:"スケルトン",hp:240,atk:10,color:"#ccc"}
-];
-const BOSSES=[
-{name:"階層の守護者",hp:800,atk:15,color:"#f55"}
-];
-
-const PARTY=[
-{name:"クローディア",lv:1,exp:0,hp:2984,max:2984,atk:30,def:10},
-{name:"アヤメ",lv:1,exp:0,hp:2117,max:2117,atk:35,def:6},
-{name:"ベアトリクス",lv:1,exp:0,hp:2631,max:2631,atk:20,def:8},
-{name:"ドゥーガルド",lv:1,exp:0,hp:2362,max:2362,atk:18,def:14},
-{name:"カルロス",lv:1,exp:0,hp:2323,max:2323,atk:28,def:9}
-];
-
-let state=JSON.parse(localStorage.getItem("save"))||{
-floor:1,dist:0,enemy:null,party:PARTY
+function num(v,d=0){return Number.isFinite(v)?v:d}
+const state=JSON.parse(localStorage.getItem("save"))||{
+floor:1,maxFloor:1,dist:0,
+party:[
+{name:"クローディア",lv:1,exp:0,hp:100,max:100,atk:10,def:5,eq:null},
+{name:"アヤメ",lv:1,exp:0,hp:80,max:80,atk:14,def:3,eq:null}
+],
+enemy:null
 };
 
-function save(){localStorage.setItem("save",JSON.stringify(state));}
+const ENEMY={name:"スライム",hp:60,max:60,atk:5,color:"#3af"};
+
+function save(){localStorage.setItem("save",JSON.stringify(state))}
 
 function show(id){
 document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
 document.getElementById(id).classList.add("active");
-document.querySelectorAll(".menu button").forEach(b=>b.classList.remove("active"));
-document.getElementById("btn-"+id).classList.add("active");
+}
+
+function spawn(){
+state.enemy=JSON.parse(JSON.stringify(ENEMY));
+}
+
+function log(t){
+const l=document.getElementById("log");
+l.innerHTML+=t+"<br>";
+l.scrollTop=l.scrollHeight;
+}
+
+function tick(){
+if(!state.enemy)spawn();
+let dmg=0;
+state.party.forEach(c=>{
+if(Math.random()<0.2){log(c.name+"のクリティカル！");dmg+=c.atk*2}
+else dmg+=c.atk
+});
+state.enemy.hp-=dmg;
+document.getElementById("enemyImg").classList.add("hit");
+
+if(state.enemy.hp<=0){
+log("敵を撃破！");
+state.dist++;
+if(state.dist>=5){state.maxFloor=state.floor}
+spawn();
+}
 render();
 }
 
-function spawnEnemy(){
-const isBoss=state.dist>0 && state.dist%10===0;
-const src=isBoss?BOSSES:ENEMIES;
-const e=JSON.parse(JSON.stringify(src[Math.floor(Math.random()*src.length)]));
-e.maxHp=e.hp;
-state.enemy=e;
-}
-
 function render(){
-document.getElementById("floor").textContent=state.floor+"F";
-document.getElementById("dist").textContent=state.dist+"m";
-
-if(!state.enemy)spawnEnemy();
+document.getElementById("info").textContent=`${state.floor}F ${state.dist}m`;
 document.getElementById("enemyName").textContent=state.enemy.name;
-document.getElementById("enemyHp").textContent="HP "+Math.floor(state.enemy.hp)+"/"+state.enemy.maxHp;
+document.getElementById("enemyHp").textContent=`HP ${state.enemy.hp}/${state.enemy.max}`;
 const img=document.getElementById("enemyImg");
 img.style.background=state.enemy.color;
 
 const p=document.getElementById("party");
 p.innerHTML="";
-state.party.forEach(c=>{
+state.party.forEach((c,i)=>{
+const rate=Math.max(0,Math.min(100,Math.floor(num(c.hp)/num(c.max)*100)));
 p.innerHTML+=`
-<div class="chara">
-<div class="face"></div>
+<div class="chara" onclick="detail(${i})">
 ${c.name} Lv${c.lv}
-<div class="hp-bar"><span style="width:${c.hp/c.max*100}%"></span></div>
+<div class="hp"><span style="width:${rate}%"></span></div>
 </div>`;
 });
-
-const s=document.getElementById("statusList");
-s.innerHTML="";
-state.party.forEach(c=>{
-s.innerHTML+=`
-<div class="panel">
-<b>${c.name}</b>
-<div class="stat">Lv ${c.lv} EXP ${c.exp}/${c.lv*100}</div>
-<div class="stat">HP ${c.hp}/${c.max}</div>
-<div class="stat">攻 ${c.atk} 防 ${c.def}</div>
-</div>`;
-});
-
 save();
 }
 
-function heal(){state.party.forEach(c=>c.hp=c.max);render();}
-
-function moveFloor(d){
-state.floor=Math.max(1,state.floor+d);
-state.dist=0;
-spawnEnemy();
-render();
+function heal(){state.party.forEach(c=>c.hp=c.max);render()}
+function nextFloor(){
+if(state.floor>=state.maxFloor){state.floor++;state.dist=0;spawn();render()}
 }
 
-function levelCheck(c){
-const need=c.lv*100;
-if(c.exp>=need){
-c.exp-=need;
-c.lv++;
-c.max=Math.floor(c.max*1.1);
-c.hp=c.max;
-c.atk+=5;
-c.def+=3;
+function detail(i){
+const c=state.party[i];
+document.getElementById("modalBox").innerHTML=
+`<b>${c.name}</b><br>Lv${c.lv}<br>HP ${c.hp}/${c.max}<br>ATK ${c.atk}<br>DEF ${c.def}`;
+document.getElementById("modal").classList.add("active");
 }
-}
-
-function tick(){
-if(!state.enemy)return;
-
-let dmg=0;
-state.party.forEach(c=>dmg+=c.atk);
-state.enemy.hp-=dmg;
-
-if(state.enemy.hp<=0){
-state.dist++;
-state.party.forEach(c=>{
-c.exp+=20;
-levelCheck(c);
-});
-spawnEnemy();
-}
-
-render();
-}
+function closeModal(){document.getElementById("modal").classList.remove("active")}
 
 render();
 setInterval(tick,1000);
