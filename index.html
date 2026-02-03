@@ -1,100 +1,105 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>簡易ハクスラRPG</title>
-    <style>
-        body { background: #1a1a1a; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
-        #screen { border: 2px solid #444; height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; margin-bottom: 10px; }
-        #stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #333; padding: 10px; border-radius: 5px; }
-        #log { height: 200px; overflow-y: scroll; border: 1px solid #444; padding: 10px; font-size: 0.8em; margin-top: 10px; background: #222; }
-        .distance { font-size: 1.5em; color: #0f0; }
-        .enemy { color: #f00; font-weight: bold; }
-        .item { color: #ff0; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPG Debug Base</title>
+<style>
+body{margin:0;background:#000;color:#fff;font-family:sans-serif}
+#game{max-width:420px;margin:auto}
+.dungeon{height:180px;background:#111;
+display:flex;flex-direction:column;align-items:center;justify-content:center}
+.party{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px}
+.chara{background:#1a3550;padding:6px;font-size:10px;text-align:center}
+.hp{height:6px;background:#333;border-radius:3px;margin-top:4px}
+.hp span{display:block;height:100%;background:#4f9}
+.log{height:90px;background:#020e18;overflow:auto;font-size:10px;padding:4px}
+</style>
 </head>
+
 <body>
+<div id="game">
 
-    <div id="screen">
-        <div id="location-text">探索中...</div>
-        <div id="distance-val" class="distance">0m</div>
-    </div>
+<div class="dungeon">
+<div id="enemyName"></div>
+<div id="enemyHp"></div>
+</div>
 
-    <div id="stats">
-        <div>HP: <span id="hp">2631</span></div>
-        <div>ATK: <span id="atk">1793</span></div>
-        <div>Gold: <span id="gold">0</span></div>
-        <div>Lv: <span id="lv">40</span></div>
-    </div>
+<div class="party" id="party"></div>
+<div class="log" id="log"></div>
 
-    <div id="log"></div>
+</div>
 
-    <script>
-        // 設定データ
-        let player = { hp: 2631, maxHp: 2631, atk: 1793, gold: 0, lv: 40 };
-        let distance = 800;
-        let isFighting = false;
+<script>
+/* ===== ログ ===== */
+function log(t){
+  const l=document.getElementById("log");
+  l.innerHTML+=t+"<br>";
+  l.scrollTop=l.scrollHeight;
+}
 
-        const logElement = document.getElementById('log');
+/* ===== キャラ ===== */
+const party=[
+  {name:"クローディア",maxHp:80,hp:80,atk:12,tech:10},
+  {name:"アヤメ",maxHp:65,hp:65,atk:14,tech:18},
+  {name:"ベアトリクス",maxHp:90,hp:90,atk:9,tech:6}
+];
 
-        function addLog(msg, className = "") {
-            const p = document.createElement('p');
-            p.textContent = msg;
-            if(className) p.className = className;
-            logElement.prepend(p); // 新しいログを上に
-        }
+/* ===== 敵 ===== */
+let enemy=createEnemy();
 
-        function gameLoop() {
-            if (isFighting) return;
+function createEnemy(){
+  return {
+    name:"スライム",
+    maxHp:50,
+    hp:50
+  };
+}
 
-            distance++;
-            document.getElementById('distance-val').textContent = distance + "m";
+/* ===== 描画 ===== */
+function render(){
+  document.getElementById("enemyName").textContent=enemy.name;
+  document.getElementById("enemyHp").textContent=
+    `HP ${enemy.hp} / ${enemy.maxHp}`;
 
-            // 10%の確率で敵に遭遇
-            if (Math.random() < 0.1) {
-                startBattle();
-            }
-        }
+  const p=document.getElementById("party");
+  p.innerHTML="";
+  party.forEach(c=>{
+    const rate=Math.floor(c.hp/c.maxHp*100);
+    p.innerHTML+=`
+      <div class="chara">
+        ${c.name}
+        <div class="hp"><span style="width:${rate}%"></span></div>
+        ATK ${c.atk} TEC ${c.tech}
+      </div>`;
+  });
+}
 
-        function startBattle() {
-            isFighting = true;
-            let enemyHp = 2000 + (distance * 2);
-            addLog(`⚠️ モンスターが現れた！ (HP: ${enemyHp})`, "enemy");
+/* ===== 戦闘 ===== */
+function battle(){
+  let total=0;
 
-            let battleInterval = setInterval(() => {
-                // プレイヤーの攻撃
-                enemyHp -= player.atk;
-                addLog(`あなたの攻撃！ ${player.atk}ダメージ！`);
+  party.forEach(c=>{
+    let dmg=c.atk;
+    const crit=Math.random()<c.tech/100;
+    if(crit)dmg*=2;
+    total+=dmg;
+    log(`${c.name} → ${dmg}ダメージ${crit?" (CRIT)":""}`);
+  });
 
-                if (enemyHp <= 0) {
-                    addLog("✅ 敵を倒した！", "item");
-                    let drop = Math.floor(Math.random() * 500);
-                    player.gold += drop;
-                    document.getElementById('gold').textContent = player.gold;
-                    addLog(`${drop} Goldを手に入れた。`);
-                    
-                    clearInterval(battleInterval);
-                    isFighting = false;
-                    return;
-                }
+  enemy.hp-=total;
 
-                // 敵の攻撃（簡易）
-                let damage = 100;
-                player.hp -= damage;
-                document.getElementById('hp').textContent = player.hp;
-                addLog(`敵の反撃！ ${damage}ダメージ...`);
+  if(enemy.hp<=0){
+    log("敵を撃破！");
+    enemy=createEnemy();
+  }
 
-                if (player.hp <= 0) {
-                    addLog("💀 あなたは倒れました...", "enemy");
-                    clearInterval(battleInterval);
-                    // 本来はここでゲームオーバー処理
-                }
-            }, 800);
-        }
+  render();
+}
 
-        // 1秒ごとに距離が進む
-        setInterval(gameLoop, 1000);
-    </script>
+/* ===== 開始 ===== */
+render();
+setInterval(battle,1500);
+</script>
 </body>
 </html>
