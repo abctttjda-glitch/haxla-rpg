@@ -1,127 +1,104 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>Endless Haxla</title>
-<style>
-body {
-  font-family: sans-serif;
-  background: #111;
-  color: #eee;
-  text-align: center;
-}
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-}
-.box {
-  border: 1px solid #555;
-  margin: 10px auto;
-  padding: 10px;
-  width: 320px;
-}
-.rare { color: #66ccff; }
-.epic { color: #cc66ff; }
-.legend { color: #ffcc00; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dungeon RPG</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>⚔ Endless Haxla ⚔</h1>
+let distance = 0;
 
-<div class="box">
-  <p>フロア: <span id="floor">1</span></p>
-  <p>HP: <span id="hp">100</span></p>
-  <p>攻撃力: <span id="atk">10</span></p>
+setInterval(() => {
+  distance += 1;
+  document.querySelector(".distance").innerHTML =
+    `${distance}m<br><span>進行中</span>`;
+}, 1000);
+
+localStorage.setItem("save", JSON.stringify(gameState));
+
+<div id="game">
+
+  <!-- 上部ステータス -->
+  <div class="top-bar">
+    <div class="distance">820m<br><span>22m</span></div>
+    <div class="controls">
+      🔥 x27 ▶▶ 🔊 自動判断
+    </div>
+  </div>
+
+  <!-- ダンジョン -->
+  <div class="dungeon"></div>
+
+  <!-- パーティ -->
+  <div class="party">
+    <div class="chara">
+      <div class="name">クローディア</div>
+      <div class="hp-bar"><span style="width:100%"></span></div>
+      <div class="hp">2984 / 2984</div>
+    </div>
+    <div class="chara">
+      <div class="name">アヤメ</div>
+      <div class="hp-bar"><span style="width:100%"></span></div>
+      <div class="hp">2117 / 2117</div>
+    </div>
+    <!-- 以下省略 -->
+  </div>
+
 </div>
 
-<div class="box">
-  <p>敵HP: <span id="enemyHp">30</span></p>
-  <button onclick="battle()">戦う！</button>
-</div>
-
-<div class="box">
-  <h3>装備</h3>
-  <p id="weapon">なし</p>
-</div>
-
-<div class="box">
-  <h3>ログ</h3>
-  <div id="log"></div>
-</div>
-
-<script>
-let player = {
-  hp: 100,
-  atk: 10,
-  weapon: null
-};
-
-let enemy = {
-  hp: 30
-};
-
-let floor = 1;
-
-function battle() {
-  enemy.hp -= player.atk;
-  log(`あなたの攻撃！ ${player.atk}ダメージ`);
-
-  if (enemy.hp <= 0) {
-    floor++;
-    document.getElementById("floor").textContent = floor;
-    dropItem();
-    enemy.hp = 20 + floor * 5;
-    log("敵を倒した！");
-  } else {
-    player.hp -= 5 + Math.floor(floor / 2);
-    log("敵の反撃！");
-  }
-
-  update();
-}
-
-function dropItem() {
-  let roll = Math.random();
-  let item = null;
-
-  if (roll > 0.95) {
-    item = { name: "伝説の剣", atk: 50, rare: "legend" };
-  } else if (roll > 0.85) {
-    item = { name: "英雄の剣", atk: 25, rare: "epic" };
-  } else if (roll > 0.6) {
-    item = { name: "鋼の剣", atk: 10, rare: "rare" };
-  }
-
-  if (item) {
-    equip(item);
-    log(`ドロップ！ <span class="${item.rare}">${item.name}</span>`);
-  }
-}
-
-function equip(item) {
-  player.weapon = item;
-  player.atk = 10 + item.atk;
-  document.getElementById("weapon").innerHTML =
-    `<span class="${item.rare}">${item.name}</span> (+${item.atk})`;
-}
-
-function update() {
-  document.getElementById("hp").textContent = player.hp;
-  document.getElementById("atk").textContent = player.atk;
-  document.getElementById("enemyHp").textContent = enemy.hp;
-
-  if (player.hp <= 0) {
-    alert("ゲームオーバー！");
-    location.reload();
-  }
-}
-
-function log(text) {
-  let div = document.getElementById("log");
-  div.innerHTML = text + "<br>" + div.innerHTML;
-}
-</script>
-
+<script src="game.js"></script>
 </body>
+body {
+  margin: 0;
+  background: black;
+  color: white;
+  font-family: sans-serif;
+}
+
+#game {
+  max-width: 420px;
+  margin: auto;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: #0b2a44;
+}
+
+.distance {
+  font-size: 20px;
+}
+
+.dungeon {
+  height: 300px;
+  background: radial-gradient(#222, #000);
+}
+
+.party {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px;
+}
+
+.chara {
+  background: #123;
+  padding: 4px;
+  font-size: 12px;
+}
+
+.hp-bar {
+  height: 6px;
+  background: #333;
+}
+
+.hp-bar span {
+  display: block;
+  height: 100%;
+  background: #2ecc71;
+}
 </html>
