@@ -2,33 +2,38 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RPG FIX A</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haxla RPG</title>
+
 <style>
 body{margin:0;background:#000;color:#fff;font-family:sans-serif}
 #game{max-width:420px;margin:auto;padding:8px}
+
 .enemy{background:#111;padding:10px;text-align:center}
-.party{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
-.chara{background:#1a3550;padding:6px;font-size:11px}
-.hp{height:6px;background:#333;margin-top:4px}
+.party{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}
+.chara{background:#1a3550;padding:4px;font-size:10px;text-align:center}
+.hp{height:6px;background:#333;margin-top:2px}
 .hp span{display:block;height:100%;background:#4f9}
-.log{background:#020e18;height:100px;overflow:auto;font-size:11px;margin-top:6px;padding:4px}
+
+.log{background:#020e18;height:110px;overflow:auto;font-size:10px;padding:4px;margin-top:6px}
 button{width:100%;margin-top:6px;padding:8px}
 </style>
 </head>
 
 <body>
 <div id="game">
-  <div class="enemy">
-    <div id="enemyName"></div>
-    <div id="enemyHp"></div>
-  </div>
 
-  <div class="party" id="party"></div>
+<div class="enemy">
+  <div id="enemyName"></div>
+  <div id="enemyHp"></div>
+</div>
 
-  <button onclick="battle()">攻撃する</button>
+<div class="party" id="party"></div>
 
-  <div class="log" id="log"></div>
+<button onclick="battle()">攻撃</button>
+
+<div class="log" id="log"></div>
+
 </div>
 
 <script>
@@ -39,48 +44,80 @@ function log(t){
   l.scrollTop=l.scrollHeight;
 }
 
-/* ===== 完全初期化 ===== */
-const party = [
-  {name:"クローディア",maxHp:80,hp:80,atk:12,tech:10},
-  {name:"アヤメ",maxHp:65,hp:65,atk:14,tech:18},
-  {name:"ベアトリクス",maxHp:90,hp:90,atk:9,tech:6}
+/* ===== キャラ（5人） ===== */
+const party=[
+  {name:"クローディア",lv:1,exp:0,maxHp:80,hp:80,atk:12,tech:10},
+  {name:"アヤメ",lv:1,exp:0,maxHp:65,hp:65,atk:14,tech:18},
+  {name:"ベアトリクス",lv:1,exp:0,maxHp:90,hp:90,atk:9,tech:6},
+  {name:"ルシア",lv:1,exp:0,maxHp:70,hp:70,atk:11,tech:14},
+  {name:"ガイウス",lv:1,exp:0,maxHp:100,hp:100,atk:8,tech:4}
 ];
 
-let enemy = createEnemy();
+/* ===== 敵テーブル ===== */
+const ENEMIES=[
+  {name:"スライム",maxHp:40,atk:5,exp:20},
+  {name:"ゴブリン",maxHp:60,atk:8,exp:30},
+  {name:"ウルフ",maxHp:55,atk:10,exp:35},
+  {name:"オーク",maxHp:80,atk:12,exp:45}
+];
 
-/* ===== 敵生成（null絶対防止） ===== */
+let floor=1;
+let enemy=createEnemy();
+
+/* ===== 敵生成 ===== */
 function createEnemy(){
+  const e=ENEMIES[Math.min(ENEMIES.length-1, Math.floor((floor-1)/2))];
   return {
-    name:"スライム",
-    maxHp:50,
-    hp:50
+    name:e.name,
+    maxHp:e.maxHp,
+    hp:e.maxHp,
+    atk:e.atk,
+    exp:e.exp
   };
 }
 
 /* ===== 描画 ===== */
 function render(){
-  document.getElementById("enemyName").textContent = enemy.name;
-  document.getElementById("enemyHp").textContent =
+  document.getElementById("enemyName").textContent=
+    `${enemy.name}（${floor}F）`;
+  document.getElementById("enemyHp").textContent=
     `HP ${enemy.hp} / ${enemy.maxHp}`;
 
   const p=document.getElementById("party");
   p.innerHTML="";
   party.forEach(c=>{
-    const rate=Math.max(0,Math.floor(c.hp/c.maxHp*100));
+    const rate=Math.floor(c.hp/c.maxHp*100);
     p.innerHTML+=`
       <div class="chara">
         ${c.name}<br>
-        ATK ${c.atk} TEC ${c.tech}
+        Lv${c.lv}<br>
         <div class="hp"><span style="width:${rate}%"></span></div>
+        ATK ${c.atk}<br>
+        EXP ${c.exp}
       </div>`;
   });
+}
+
+/* ===== レベルアップ ===== */
+function levelUp(c){
+  const need=c.lv*50;
+  while(c.exp>=need){
+    c.exp-=need;
+    c.lv++;
+    c.maxHp+=10;
+    c.atk+=3;
+    c.tech+=2;
+    c.hp=c.maxHp;
+    log(`${c.name} は Lv${c.lv} になった！`);
+  }
 }
 
 /* ===== 戦闘 ===== */
 function battle(){
   let total=0;
 
-  party.forEach(c=>{
+  // 前衛3人だけ攻撃
+  party.slice(0,3).forEach(c=>{
     let dmg=c.atk;
     const crit=Math.random()<c.tech/100;
     if(crit)dmg*=2;
@@ -88,11 +125,16 @@ function battle(){
     log(`${c.name} → ${dmg}ダメージ${crit?" (CRIT)":""}`);
   });
 
-  enemy.hp -= total;
+  enemy.hp-=total;
 
-  if(enemy.hp <= 0){
-    log("敵を撃破！");
-    enemy = createEnemy();
+  if(enemy.hp<=0){
+    log(`${enemy.name} を倒した！`);
+    party.forEach(c=>{
+      c.exp+=enemy.exp;
+      levelUp(c);
+    });
+    floor++;
+    enemy=createEnemy();
   }
 
   render();
