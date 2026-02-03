@@ -1,104 +1,45 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Haxla RPG</title>
 
 <style>
-body {
-  margin:0;
-  background:#000;
-  color:#fff;
-  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-}
-#game { max-width:420px; margin:auto; }
+body{margin:0;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+#game{max-width:420px;margin:auto}
 
-/* ===== 上部 ===== */
-.top {
-  display:flex;
-  align-items:center;
-  padding:6px;
-  background:#0b2a44;
-}
-.circle {
-  width:64px;height:64px;border-radius:50%;
-  background:linear-gradient(#1e4f7a,#0b2a44);
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;text-align:center;
-}
-.bar { flex:1;height:30px;margin:0 6px;background:#143b63;border-radius:4px; }
-.icons { font-size:12px;opacity:.8 }
+/* 上部 */
+.top{display:flex;align-items:center;padding:6px;background:#0b2a44}
+.circle{width:64px;height:64px;border-radius:50%;background:linear-gradient(#1e4f7a,#0b2a44);
+display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center}
+.bar{flex:1;height:30px;margin:0 6px;background:#143b63;border-radius:4px}
+.icons{font-size:12px;opacity:.8}
 
-/* ===== メニュー ===== */
-.menu {
-  display:flex;
-  background:#061a2a;
-}
-.menu button {
-  flex:1;
-  border:none;
-  background:#061a2a;
-  color:#9cf;
-  padding:8px;
-}
-.menu button.active {
-  background:#0e2a42;
-}
+/* メニュー */
+.menu{display:flex;background:#061a2a}
+.menu button{flex:1;border:none;background:#061a2a;color:#9cf;padding:8px}
+.menu button.active{background:#0e2a42}
 
-/* ===== ダンジョン ===== */
-.screen { display:none; }
-.screen.active { display:block; }
+/* 画面 */
+.screen{display:none}
+.screen.active{display:block}
 
-.dungeon {
-  height:260px;
-  background:radial-gradient(#222,#000);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.enemy { color:#ff6666;font-size:16px; }
+/* ダンジョン */
+.dungeon{height:260px;background:radial-gradient(#222,#000);display:flex;align-items:center;justify-content:center}
+.enemy{color:#ff6666;font-size:16px}
 
-/* ===== パーティ ===== */
-.party {
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:2px;
-  padding:4px;
-  background:#061a2a;
-}
-.chara {
-  background:#0e2a42;
-  padding:4px;
-  font-size:9px;
-  text-align:center;
-}
-.face {
-  width:36px;height:36px;border-radius:50%;
-  background:linear-gradient(#555,#222);
-  margin:0 auto 2px;
-}
-.hp-bar {
-  height:6px;background:#333;border-radius:3px;overflow:hidden;
-}
-.hp-bar span {
-  display:block;height:100%;
-  background:linear-gradient(#4eff9a,#1fae63);
-}
-.skill { font-size:8px;color:#9cf }
+/* パーティ */
+.party{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px;background:#061a2a}
+.chara{background:#0e2a42;padding:4px;font-size:9px;text-align:center}
+.face{width:36px;height:36px;border-radius:50%;background:linear-gradient(#666,#222);margin:0 auto 2px}
+.hp-bar{height:6px;background:#333;border-radius:3px;overflow:hidden}
+.hp-bar span{display:block;height:100%;background:linear-gradient(#4eff9a,#1fae63)}
+.skill{font-size:8px;color:#9cf}
 
-/* ===== 拠点 / 聖杯 ===== */
-.panel {
-  padding:20px;
-  text-align:center;
-}
-.panel button {
-  padding:10px;
-  margin:6px;
-  border:none;
-  background:#0e2a42;
-  color:white;
-}
+/* 拠点・聖杯 */
+.panel{padding:20px;text-align:center}
+.panel button{padding:10px;margin:6px;border:none;background:#0e2a42;color:#fff}
 </style>
 </head>
 
@@ -119,9 +60,9 @@ body {
 
 <!-- メニュー -->
 <div class="menu">
-  <button onclick="show('dungeon')" class="active" id="btn-dungeon">ダンジョン</button>
-  <button onclick="show('town')" id="btn-town">拠点</button>
-  <button onclick="show('holy')" id="btn-holy">聖杯</button>
+  <button id="btn-dungeon" class="active" onclick="show('dungeon')">ダンジョン</button>
+  <button id="btn-town" onclick="show('town')">拠点</button>
+  <button id="btn-holy" onclick="show('holy')">聖杯</button>
 </div>
 
 <!-- ダンジョン -->
@@ -136,8 +77,7 @@ body {
 <div id="town" class="screen">
   <div class="panel">
     <p>騎士団本部</p>
-    <p>全員HP回復</p>
-    <button onclick="heal()">回復</button>
+    <button onclick="heal()">全回復</button>
   </div>
 </div>
 
@@ -155,21 +95,52 @@ body {
 </div>
 
 <script>
-/* ===== セーブ ===== */
-const now = Date.now();
-let state = JSON.parse(localStorage.getItem("save")) || {
-  dist:0,floor:1,enemyHp:300,last:now,
-  holy:0,permAtk:1,permHp:1,
-  party:[
-    {name:"クローディア",hp:2984,max:2984,skill:"先陣",lv:1},
-    {name:"アヤメ",hp:2117,max:2117,skill:"影斬り",lv:1},
-    {name:"ベアトリクス",hp:2631,max:2631,skill:"祈り",lv:1},
-    {name:"ドゥーガルド",hp:2362,max:2362,skill:"鉄壁",lv:1},
-    {name:"カルロス",hp:2323,max:2323,skill:"激昂",lv:1}
-  ]
-};
+/* ========= 安全な初期定義 ========= */
+const DEFAULT_PARTY = [
+  {name:"クローディア",hp:2984,max:2984,lv:1,skill:"先陣"},
+  {name:"アヤメ",hp:2117,max:2117,lv:1,skill:"影斬り"},
+  {name:"ベアトリクス",hp:2631,max:2631,lv:1,skill:"祈り"},
+  {name:"ドゥーガルド",hp:2362,max:2362,lv:1,skill:"鉄壁"},
+  {name:"カルロス",hp:2323,max:2323,lv:1,skill:"激昂"}
+];
 
-/* ===== オフライン ===== */
+/* ========= セーブ読み込み（壊れてても修復） ========= */
+function loadState(){
+  let raw = {};
+  try{ raw = JSON.parse(localStorage.getItem("save")) || {}; }catch(e){}
+  const now = Date.now();
+
+  const state = {
+    dist: Number(raw.dist)||0,
+    floor: Number(raw.floor)||1,
+    enemyHp: Number(raw.enemyHp)||300,
+    last: Number(raw.last)||now,
+    holy: Number(raw.holy)||0,
+    permAtk: Number(raw.permAtk)||1,
+    permHp: Number(raw.permHp)||1,
+    party: []
+  };
+
+  const srcParty = Array.isArray(raw.party) ? raw.party : [];
+  for(let i=0;i<DEFAULT_PARTY.length;i++){
+    const d = DEFAULT_PARTY[i];
+    const s = srcParty[i]||{};
+    state.party.push({
+      name: d.name,
+      skill: d.skill,
+      lv: Number(s.lv)||d.lv,
+      max: Number(s.max)||d.max,
+      hp: Math.min(Number(s.hp)||d.max, Number(s.max)||d.max)
+    });
+  }
+
+  return state;
+}
+
+let state = loadState();
+
+/* ========= オフライン進行 ========= */
+const now = Date.now();
 const diff = Math.floor((now - state.last)/1000);
 if(diff>0){
   state.dist += diff;
@@ -177,9 +148,9 @@ if(diff>0){
 }
 state.last = now;
 
-/* ===== UI ===== */
-const enemyDiv=document.getElementById("enemy");
-const partyDiv=document.getElementById("party");
+/* ========= UI ========= */
+const enemyDiv = document.getElementById("enemy");
+const partyDiv = document.getElementById("party");
 
 function show(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
@@ -189,11 +160,11 @@ function show(id){
 }
 
 function render(){
-  document.getElementById("dist").textContent=state.dist+"m";
-  document.getElementById("floor").textContent=state.floor+"F";
-  document.getElementById("holyPt").textContent=state.holy;
-  document.getElementById("atkMul").textContent=state.permAtk.toFixed(2);
-  document.getElementById("hpMul").textContent=state.permHp.toFixed(2);
+  document.getElementById("dist").textContent = state.dist+"m";
+  document.getElementById("floor").textContent = state.floor+"F";
+  document.getElementById("holyPt").textContent = state.holy;
+  document.getElementById("atkMul").textContent = state.permAtk.toFixed(2);
+  document.getElementById("hpMul").textContent = state.permHp.toFixed(2);
 
   partyDiv.innerHTML="";
   state.party.forEach(c=>{
@@ -203,48 +174,46 @@ function render(){
       <div class="face"></div>
       ${c.name}
       <div class="hp-bar"><span style="width:${(c.hp/c.max)*100}%"></span></div>
-      <div class="skill">${c.skill} Lv${c.lv}</div>`;
+      <div class="skill">${c.skill} Lv${c.lv}</div>
+    `;
     partyDiv.appendChild(el);
   });
 
   localStorage.setItem("save",JSON.stringify(state));
 }
 
-/* ===== 聖杯 ===== */
+/* ========= 聖杯 ========= */
 function upAtk(){ if(state.holy>0){ state.holy--; state.permAtk+=0.1; render(); } }
 function upHp(){ if(state.holy>0){ state.holy--; state.permHp+=0.1; render(); } }
 
-/* ===== 拠点 ===== */
-function heal(){
-  state.party.forEach(c=>c.hp=c.max);
-  render();
-}
+/* ========= 拠点 ========= */
+function heal(){ state.party.forEach(c=>c.hp=c.max); render(); }
 
-/* ===== メイン ===== */
+/* ========= メインループ ========= */
 function tick(){
   state.dist++;
-  state.floor=Math.floor(state.dist/100)+1;
+  state.floor = Math.floor(state.dist/100)+1;
 
-  let dmg=25*state.permAtk;
+  let dmg = 25*state.permAtk;
   state.party.forEach(c=>{
     if(c.skill==="先陣") dmg*=1+0.1*c.lv;
-    if(c.skill==="影斬り"&&Math.random()<0.1*c.lv) dmg*=2;
+    if(c.skill==="影斬り" && Math.random()<0.1*c.lv) dmg*=2;
     if(c.skill==="祈り") c.hp=Math.min(c.max,c.hp+4*c.lv);
     if(c.skill==="激昂") dmg*=1+(1-c.hp/c.max);
   });
 
-  state.enemyHp-=dmg;
+  state.enemyHp -= dmg;
   if(state.enemyHp<=0){
-    state.enemyHp=state.dist%100===0?3000+state.floor*500:300+state.floor*60;
+    state.enemyHp = (state.dist%100===0) ? 3000+state.floor*500 : 300+state.floor*60;
     state.holy++;
   }
 
-  enemyDiv.textContent=(state.dist%100===0?"BOSS ":"")+"敵 HP "+Math.floor(state.enemyHp);
+  enemyDiv.textContent = (state.dist%100===0?"BOSS ":"")+"敵 HP "+Math.floor(state.enemyHp);
 
-  const t=state.party[Math.floor(Math.random()*state.party.length)];
-  let taken=15*state.floor;
+  const t = state.party[Math.floor(Math.random()*state.party.length)];
+  let taken = 15*state.floor;
   if(t.skill==="鉄壁") taken*=1-0.1*t.lv;
-  t.hp-=taken;
+  t.hp -= taken;
 
   if(state.party.every(c=>c.hp<=0)){
     state.party.forEach(c=>{
