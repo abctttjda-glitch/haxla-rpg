@@ -16,16 +16,35 @@ body {
   max-width: 420px;
   margin: auto;
 }
-.top-bar {
+
+/* 上部UI */
+.top {
   display: flex;
-  justify-content: space-between;
-  padding: 8px;
+  align-items: center;
+  padding: 6px;
   background: #0b2a44;
+}
+.circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #143b63;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.bar {
+  flex: 1;
+  height: 32px;
+  margin: 0 6px;
+  background: #123b5c;
+}
+.icons {
   font-size: 14px;
 }
-.distance {
-  font-size: 20px;
-}
+
+/* ダンジョン */
 .dungeon {
   height: 260px;
   background: radial-gradient(#222, #000);
@@ -34,47 +53,41 @@ body {
   justify-content: center;
 }
 .enemy {
-  font-size: 18px;
   color: #f55;
+  font-size: 18px;
 }
+
+/* パーティUI */
 .party {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-  padding: 6px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 4px;
+  background: #061a2a;
 }
 .chara {
-  background: #123;
-  padding: 6px;
-  font-size: 12px;
+  background: #0e2a42;
+  padding: 4px;
+  font-size: 10px;
+  text-align: center;
+}
+.face {
+  height: 40px;
+  background: #222;
+  margin-bottom: 2px;
 }
 .hp-bar {
   height: 6px;
   background: #333;
-  margin-top: 2px;
 }
 .hp-bar span {
   display: block;
   height: 100%;
   background: #2ecc71;
 }
-.menu {
-  display: flex;
-}
-.menu button {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  background: #222;
-  color: white;
-  font-size: 14px;
-}
-.menu button.active {
-  background: #444;
-}
-.center {
-  padding: 20px;
-  text-align: center;
+.skill {
+  font-size: 9px;
+  color: #9cf;
 }
 </style>
 </head>
@@ -82,130 +95,97 @@ body {
 <body>
 <div id="game">
 
-  <div class="top-bar">
-    <div class="distance">0m</div>
-    <div>Gold: <span id="gold">0</span></div>
+  <div class="top">
+    <div class="circle"><span id="dist">0m</span></div>
+    <div class="bar"></div>
+    <div class="icons">▶▶ 🔊 自動</div>
   </div>
 
-  <div class="menu">
-    <button onclick="showDungeon()" class="active" id="btnDungeon">ダンジョン</button>
-    <button onclick="showTown()" id="btnTown">拠点</button>
+  <div class="dungeon">
+    <div class="enemy" id="enemy">探索中…</div>
   </div>
 
-  <!-- ダンジョン画面 -->
-  <div id="dungeonScreen">
-    <div class="dungeon">
-      <div class="enemy" id="enemy">探索中…</div>
-    </div>
-
-    <div class="party" id="party"></div>
-  </div>
-
-  <!-- 拠点画面 -->
-  <div id="townScreen" style="display:none">
-    <div class="center">
-      <p>騎士団本部</p>
-      <p>全員HP全回復</p>
-    </div>
-  </div>
+  <div class="party" id="party"></div>
 
 </div>
 
 <script>
-/* ====== ゲームデータ ====== */
+/* ===== データ ===== */
 let state = JSON.parse(localStorage.getItem("save")) || {
-  distance: 0,
-  gold: 0,
-  enemyHp: 0,
+  dist: 0,
+  enemyHp: 200,
   party: [
-    { name:"クローディア", hp:2984, max:2984 },
-    { name:"アヤメ", hp:2117, max:2117 },
-    { name:"ベアトリクス", hp:2631, max:2631 },
-    { name:"ドゥーガルド", hp:2362, max:2362 },
-    { name:"カルロス", hp:2323, max:2323 }
+    {name:"クローディア", hp:2984, max:2984, skill:"先陣"},
+    {name:"アヤメ", hp:2117, max:2117, skill:"影斬り"},
+    {name:"ベアトリクス", hp:2631, max:2631, skill:"祈り"},
+    {name:"ドゥーガルド", hp:2362, max:2362, skill:"鉄壁"},
+    {name:"カルロス", hp:2323, max:2323, skill:"激昂"}
   ]
 };
 
+const enemy = document.getElementById("enemy");
 const partyDiv = document.getElementById("party");
-const enemyDiv = document.getElementById("enemy");
 
-/* ====== UI更新 ====== */
+/* ===== 描画 ===== */
 function render() {
-  document.querySelector(".distance").textContent = state.distance + "m";
-  document.getElementById("gold").textContent = state.gold;
-
+  document.getElementById("dist").textContent = state.dist + "m";
   partyDiv.innerHTML = "";
+
   state.party.forEach(c => {
-    const d = document.createElement("div");
-    d.className = "chara";
-    d.innerHTML = `
-      ${c.name}<br>
-      ${c.hp} / ${c.max}
+    const el = document.createElement("div");
+    el.className = "chara";
+    el.innerHTML = `
+      <div class="face"></div>
+      ${c.name}
       <div class="hp-bar">
         <span style="width:${(c.hp/c.max)*100}%"></span>
       </div>
+      <div class="skill">${c.skill}</div>
     `;
-    partyDiv.appendChild(d);
+    partyDiv.appendChild(el);
   });
 
   localStorage.setItem("save", JSON.stringify(state));
 }
 
-/* ====== ダンジョン進行 ====== */
-function spawnEnemy() {
-  state.enemyHp = 200 + state.distance * 2;
-  enemyDiv.textContent = "敵 HP " + state.enemyHp;
-}
+/* ===== 戦闘＋スキル ===== */
+function tick() {
+  state.dist++;
 
-function battleTick() {
+  let dmg = 40;
+
+  // スキル処理
+  state.party.forEach(c => {
+    if (c.skill === "先陣") dmg *= 1.2;
+    if (c.skill === "影斬り" && Math.random() < 0.2) dmg *= 2;
+    if (c.skill === "祈り") c.hp = Math.min(c.max, c.hp + 10);
+    if (c.skill === "激昂") dmg *= (1 + (1 - c.hp / c.max));
+  });
+
+  state.enemyHp -= dmg;
+
   if (state.enemyHp <= 0) {
-    state.gold += 10;
-    spawnEnemy();
+    state.enemyHp = 200 + state.dist * 2;
   }
 
-  // パーティ攻撃
-  state.enemyHp -= 30;
-  enemyDiv.textContent = "敵 HP " + Math.max(0, state.enemyHp);
+  enemy.textContent = "敵 HP " + Math.floor(state.enemyHp);
 
-  // 敵攻撃
-  const target = state.party[Math.floor(Math.random()*state.party.length)];
-  target.hp -= 20;
+  // 被ダメ
+  const t = state.party[Math.floor(Math.random()*state.party.length)];
+  let taken = 25;
+  if (t.skill === "鉄壁") taken *= 0.7;
+  t.hp -= taken;
 
-  // 全滅チェック
+  // 全滅復活
   if (state.party.every(c => c.hp <= 0)) {
     state.party.forEach(c => c.hp = c.max);
-    enemyDiv.textContent = "全滅…回復中";
   }
 
   render();
 }
 
-/* ====== 画面切り替え ====== */
-function showTown() {
-  document.getElementById("dungeonScreen").style.display = "none";
-  document.getElementById("townScreen").style.display = "block";
-  document.getElementById("btnTown").classList.add("active");
-  document.getElementById("btnDungeon").classList.remove("active");
-
-  state.party.forEach(c => c.hp = c.max);
-  render();
-}
-
-function showDungeon() {
-  document.getElementById("dungeonScreen").style.display = "block";
-  document.getElementById("townScreen").style.display = "none";
-  document.getElementById("btnDungeon").classList.add("active");
-  document.getElementById("btnTown").classList.remove("active");
-}
-
-/* ====== メインループ ====== */
-spawnEnemy();
 render();
-
-setInterval(() => {
-  state.distance++;
-  battleTick();
-}, 1000);
+setInterval(tick, 1000);
 </script>
 
 </body>
