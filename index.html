@@ -2,31 +2,33 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Haxla RPG</title>
 
 <style>
-body{margin:0;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+body{margin:0;background:#000;color:#fff;font-family:-apple-system}
 #game{max-width:420px;margin:auto}
 .top{display:flex;align-items:center;padding:6px;background:#0b2a44}
 .circle{width:64px;height:64px;border-radius:50%;background:linear-gradient(#1e4f7a,#0b2a44);
-display:flex;align-items:center;justify-content:center;font-size:12px;text-align:center}
+display:flex;align-items:center;justify-content:center;font-size:12px}
 .bar{flex:1;height:30px;margin:0 6px;background:#143b63;border-radius:4px}
 .menu{display:flex;background:#061a2a}
 .menu button{flex:1;border:none;background:#061a2a;color:#9cf;padding:8px}
 .menu button.active{background:#0e2a42}
 .screen{display:none}
 .screen.active{display:block}
-.dungeon{height:240px;background:radial-gradient(#222,#000);display:flex;align-items:center;justify-content:center}
-.enemy{color:#ff6666;font-size:16px}
+.dungeon{height:240px;background:radial-gradient(#222,#000);
+display:flex;flex-direction:column;align-items:center;justify-content:center}
+.enemy{margin:6px;font-size:14px}
+.enemy-img{width:64px;height:64px;border-radius:50%;margin-bottom:4px}
 .party{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px;background:#061a2a}
 .chara{background:#0e2a42;padding:4px;font-size:9px;text-align:center}
-.face{width:36px;height:36px;border-radius:50%;background:linear-gradient(#666,#222);margin:0 auto 2px}
+.face{width:36px;height:36px;border-radius:50%;background:linear-gradient(#666,#222);margin:auto}
 .hp-bar{height:6px;background:#333;border-radius:3px;overflow:hidden}
 .hp-bar span{display:block;height:100%;background:linear-gradient(#4eff9a,#1fae63)}
 .panel{padding:10px;text-align:center}
 .panel button{margin:4px;padding:8px;border:none;background:#0e2a42;color:#fff}
-.stat{font-size:12px;margin:4px}
+.stat{font-size:12px;margin:2px}
 </style>
 </head>
 
@@ -51,7 +53,9 @@ display:flex;align-items:center;justify-content:center;font-size:12px;text-align
 
 <div id="dungeon" class="screen active">
   <div class="dungeon">
-    <div class="enemy" id="enemy">探索中…</div>
+    <div id="enemyImg" class="enemy-img"></div>
+    <div class="enemy" id="enemyName"></div>
+    <div class="enemy" id="enemyHp"></div>
   </div>
   <div class="party" id="party"></div>
 </div>
@@ -59,8 +63,8 @@ display:flex;align-items:center;justify-content:center;font-size:12px;text-align
 <div id="town" class="screen">
   <div class="panel">
     <button onclick="heal()">全回復</button><br>
-    <button onclick="floorMove(1)">次の階層へ</button>
-    <button onclick="floorMove(-1)">前の階層へ</button>
+    <button onclick="moveFloor(1)">次の階層</button>
+    <button onclick="moveFloor(-1)">前の階層</button>
   </div>
 </div>
 
@@ -71,16 +75,25 @@ display:flex;align-items:center;justify-content:center;font-size:12px;text-align
 </div>
 
 <script>
-const DEFAULT_PARTY=[
-{name:"クローディア",lv:1,exp:0,hp:2984,max:2984,atk:30,def:10,skill:"先陣"},
-{name:"アヤメ",lv:1,exp:0,hp:2117,max:2117,atk:35,def:6,skill:"影斬り"},
-{name:"ベアトリクス",lv:1,exp:0,hp:2631,max:2631,atk:20,def:8,skill:"祈り"},
-{name:"ドゥーガルド",lv:1,exp:0,hp:2362,max:2362,atk:18,def:14,skill:"鉄壁"},
-{name:"カルロス",lv:1,exp:0,hp:2323,max:2323,atk:28,def:9,skill:"激昂"}
+const ENEMIES=[
+{name:"スライム",hp:120,atk:5,color:"#3af"},
+{name:"ゴブリン",hp:180,atk:8,color:"#6f6"},
+{name:"スケルトン",hp:240,atk:10,color:"#ccc"}
+];
+const BOSSES=[
+{name:"階層の守護者",hp:800,atk:15,color:"#f55"}
+];
+
+const PARTY=[
+{name:"クローディア",lv:1,exp:0,hp:2984,max:2984,atk:30,def:10},
+{name:"アヤメ",lv:1,exp:0,hp:2117,max:2117,atk:35,def:6},
+{name:"ベアトリクス",lv:1,exp:0,hp:2631,max:2631,atk:20,def:8},
+{name:"ドゥーガルド",lv:1,exp:0,hp:2362,max:2362,atk:18,def:14},
+{name:"カルロス",lv:1,exp:0,hp:2323,max:2323,atk:28,def:9}
 ];
 
 let state=JSON.parse(localStorage.getItem("save"))||{
-floor:1,dist:0,enemyHp:300,party:JSON.parse(JSON.stringify(DEFAULT_PARTY))
+floor:1,dist:0,enemy:null,party:PARTY
 };
 
 function save(){localStorage.setItem("save",JSON.stringify(state));}
@@ -93,9 +106,23 @@ document.getElementById("btn-"+id).classList.add("active");
 render();
 }
 
+function spawnEnemy(){
+const isBoss=state.dist>0 && state.dist%10===0;
+const src=isBoss?BOSSES:ENEMIES;
+const e=JSON.parse(JSON.stringify(src[Math.floor(Math.random()*src.length)]));
+e.maxHp=e.hp;
+state.enemy=e;
+}
+
 function render(){
 document.getElementById("floor").textContent=state.floor+"F";
 document.getElementById("dist").textContent=state.dist+"m";
+
+if(!state.enemy)spawnEnemy();
+document.getElementById("enemyName").textContent=state.enemy.name;
+document.getElementById("enemyHp").textContent="HP "+Math.floor(state.enemy.hp)+"/"+state.enemy.maxHp;
+const img=document.getElementById("enemyImg");
+img.style.background=state.enemy.color;
 
 const p=document.getElementById("party");
 p.innerHTML="";
@@ -114,10 +141,9 @@ state.party.forEach(c=>{
 s.innerHTML+=`
 <div class="panel">
 <b>${c.name}</b>
-<div class="stat">Lv ${c.lv} EXP ${c.exp}</div>
+<div class="stat">Lv ${c.lv} EXP ${c.exp}/${c.lv*100}</div>
 <div class="stat">HP ${c.hp}/${c.max}</div>
 <div class="stat">攻 ${c.atk} 防 ${c.def}</div>
-<div class="stat">スキル：${c.skill}</div>
 </div>`;
 });
 
@@ -126,10 +152,10 @@ save();
 
 function heal(){state.party.forEach(c=>c.hp=c.max);render();}
 
-function floorMove(d){
+function moveFloor(d){
 state.floor=Math.max(1,state.floor+d);
 state.dist=0;
-state.enemyHp=300+state.floor*100;
+spawnEnemy();
 render();
 }
 
@@ -146,19 +172,19 @@ c.def+=3;
 }
 
 function tick(){
-state.dist++;
-let dmg=0;
-state.party.forEach(c=>{
-dmg+=c.atk;
-});
-state.enemyHp-=dmg;
+if(!state.enemy)return;
 
-if(state.enemyHp<=0){
+let dmg=0;
+state.party.forEach(c=>dmg+=c.atk);
+state.enemy.hp-=dmg;
+
+if(state.enemy.hp<=0){
+state.dist++;
 state.party.forEach(c=>{
 c.exp+=20;
 levelCheck(c);
 });
-state.enemyHp=300+state.floor*120;
+spawnEnemy();
 }
 
 render();
