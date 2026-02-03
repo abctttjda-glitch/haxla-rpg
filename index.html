@@ -8,27 +8,30 @@
 <style>
 body{margin:0;background:#000;color:#fff;font-family:-apple-system}
 #game{max-width:420px;margin:auto}
-.top{display:flex;align-items:center;padding:6px;background:#0b2a44}
-.circle{width:64px;height:64px;border-radius:50%;background:#123}
+.top{padding:6px;background:#0b2a44;text-align:center}
 .menu{display:flex;background:#061a2a}
 .menu button{flex:1;border:none;background:#061a2a;color:#9cf;padding:8px}
 .menu button.active{background:#0e2a42}
 .screen{display:none}
 .screen.active{display:block}
+
 .dungeon{height:220px;background:radial-gradient(#222,#000);
 display:flex;flex-direction:column;align-items:center;justify-content:center}
 .enemy-img{width:72px;height:72px;border-radius:50%;
-animation:spawn .3s ease}
+animation:spawn .3s}
 .enemy-img.hit{animation:hit .15s}
 .enemy-img.dead{animation:dead .4s forwards}
 @keyframes spawn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes hit{0%{transform:translateX(-4px)}50%{transform:translateX(4px)}}
 @keyframes dead{to{transform:scale(0);opacity:0}}
+
 .party{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px}
 .chara{background:#0e2a42;padding:4px;font-size:9px;text-align:center}
 .hp{height:6px;background:#333;border-radius:3px}
 .hp span{display:block;height:100%;background:#4f9}
-.log{height:60px;overflow:auto;font-size:10px;background:#020e18;padding:4px}
+
+.log{height:70px;overflow:auto;font-size:10px;background:#020e18;padding:4px}
+
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.8);
 display:none;align-items:center;justify-content:center}
 .modal.active{display:flex}
@@ -38,7 +41,8 @@ display:none;align-items:center;justify-content:center}
 
 <body>
 <div id="game">
-<div class="top"><div id="info"></div></div>
+
+<div class="top" id="info"></div>
 
 <div class="menu">
 <button class="active" onclick="show('dungeon')">ダンジョン</button>
@@ -59,6 +63,7 @@ display:none;align-items:center;justify-content:center}
 <button onclick="heal()">全回復</button>
 <button onclick="nextFloor()">次の階層</button>
 </div>
+
 </div>
 
 <div class="modal" id="modal" onclick="closeModal()">
@@ -66,63 +71,99 @@ display:none;align-items:center;justify-content:center}
 </div>
 
 <script>
+/* ===== 共通 ===== */
 function num(v,d=0){return Number.isFinite(v)?v:d}
-const state=JSON.parse(localStorage.getItem("save"))||{
-floor:1,maxFloor:1,dist:0,
-party:[
-{name:"クローディア",lv:1,exp:0,hp:100,max:100,atk:10,def:5,eq:null},
-{name:"アヤメ",lv:1,exp:0,hp:80,max:80,atk:14,def:3,eq:null}
-],
-enemy:null
-};
-
-const ENEMY={name:"スライム",hp:60,max:60,atk:5,color:"#3af"};
-
-function save(){localStorage.setItem("save",JSON.stringify(state))}
-
-function show(id){
-document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-document.getElementById(id).classList.add("active");
-}
-
-function spawn(){
-state.enemy=JSON.parse(JSON.stringify(ENEMY));
-}
-
 function log(t){
 const l=document.getElementById("log");
 l.innerHTML+=t+"<br>";
 l.scrollTop=l.scrollHeight;
 }
 
+/* ===== 状態 ===== */
+let state=JSON.parse(localStorage.getItem("save"))||{
+floor:1,maxFloor:1,dist:0,
+party:[
+{name:"クローディア",lv:1,exp:0,hp:100,max:100,atk:10,def:5,skill:"先陣",eq:null},
+{name:"アヤメ",lv:1,exp:0,hp:80,max:80,atk:14,def:3,skill:"影斬り",eq:null}
+],
+enemy:null
+};
+
+const ENEMIES=[
+{name:"スライム",hp:60,atk:5,color:"#3af"},
+{name:"ゴブリン",hp:90,atk:8,color:"#6f6"}
+];
+const BOSS={name:"階層の守護者",hp:200,atk:12,color:"#f55"};
+
+function save(){localStorage.setItem("save",JSON.stringify(state))}
+
+/* ===== UI ===== */
+function show(id){
+document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+}
+
+/* ===== 敵 ===== */
+function spawn(){
+const boss=state.dist>0&&state.dist%5===0;
+const src=boss?BOSS:ENEMIES[Math.floor(Math.random()*ENEMIES.length)];
+state.enemy={...src,max:src.hp};
+}
+
+/* ===== 進行 ===== */
+function levelUp(c){
+const need=c.lv*100;
+if(c.exp>=need){
+c.exp-=need;c.lv++;
+c.max=Math.floor(c.max*1.1);
+c.hp=c.max;c.atk+=4;c.def+=2;
+log(c.name+" LvUP!");
+}
+}
+
+function drop(){
+if(Math.random()<0.3){
+const eq={atk:Math.floor(Math.random()*5+3),def:Math.floor(Math.random()*3)};
+const c=state.party.reduce((a,b)=>a.atk>b.atk?a:b);
+c.atk+=eq.atk;c.def+=eq.def;c.eq=eq;
+log(c.name+"は装備を入手！");
+}
+}
+
+/* ===== ループ ===== */
 function tick(){
 if(!state.enemy)spawn();
 let dmg=0;
 state.party.forEach(c=>{
-if(Math.random()<0.2){log(c.name+"のクリティカル！");dmg+=c.atk*2}
-else dmg+=c.atk
+let d=c.atk;
+if(Math.random()<0.2){d*=2;log(c.name+"のスキル発動！")}
+dmg+=d;
 });
 state.enemy.hp-=dmg;
 document.getElementById("enemyImg").classList.add("hit");
 
 if(state.enemy.hp<=0){
-log("敵を撃破！");
+log(state.enemy.name+"撃破！");
 state.dist++;
-if(state.dist>=5){state.maxFloor=state.floor}
+state.party.forEach(c=>{c.exp+=20;levelUp(c)});
+drop();
+if(state.dist>=5)state.maxFloor=Math.max(state.maxFloor,state.floor+1);
 spawn();
 }
 render();
 }
 
+/* ===== 描画 ===== */
 function render(){
-document.getElementById("info").textContent=`${state.floor}F ${state.dist}m`;
-document.getElementById("enemyName").textContent=state.enemy.name;
-document.getElementById("enemyHp").textContent=`HP ${state.enemy.hp}/${state.enemy.max}`;
-const img=document.getElementById("enemyImg");
-img.style.background=state.enemy.color;
+document.getElementById("info").textContent=
+`${state.floor}F ${state.dist}m`;
 
-const p=document.getElementById("party");
-p.innerHTML="";
+document.getElementById("enemyName").textContent=state.enemy.name;
+document.getElementById("enemyHp").textContent=
+`HP ${Math.max(0,state.enemy.hp)}/${state.enemy.max}`;
+document.getElementById("enemyImg").style.background=state.enemy.color;
+
+const p=document.getElementById("party");p.innerHTML="";
 state.party.forEach((c,i)=>{
 const rate=Math.max(0,Math.min(100,Math.floor(num(c.hp)/num(c.max)*100)));
 p.innerHTML+=`
@@ -134,15 +175,25 @@ ${c.name} Lv${c.lv}
 save();
 }
 
+/* ===== 拠点 ===== */
 function heal(){state.party.forEach(c=>c.hp=c.max);render()}
 function nextFloor(){
-if(state.floor>=state.maxFloor){state.floor++;state.dist=0;spawn();render()}
+if(state.floor+1<=state.maxFloor){
+state.floor++;state.dist=0;spawn();render();
+}
 }
 
+/* ===== 詳細 ===== */
 function detail(i){
 const c=state.party[i];
 document.getElementById("modalBox").innerHTML=
-`<b>${c.name}</b><br>Lv${c.lv}<br>HP ${c.hp}/${c.max}<br>ATK ${c.atk}<br>DEF ${c.def}`;
+`<b>${c.name}</b><br>
+Lv ${c.lv}<br>
+HP ${c.hp}/${c.max}<br>
+ATK ${c.atk}<br>
+DEF ${c.def}<br>
+Skill ${c.skill}<br>
+装備 ${c.eq?`ATK+${c.eq.atk} DEF+${c.eq.def}`:"なし"}`;
 document.getElementById("modal").classList.add("active");
 }
 function closeModal(){document.getElementById("modal").classList.remove("active")}
